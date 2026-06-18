@@ -26,6 +26,21 @@ type SendMessageRequest struct {
 	Message string `json:"message"`
 }
 
+type WebhookRequest struct {
+	URL string `json:"url"`
+}
+
+type CheckNumberRequest struct {
+	Number  string   `json:"number"`
+	Numbers []string `json:"numbers"`
+}
+
+type CheckNumberResult struct {
+	Number     string `json:"number"`
+	Registered bool   `json:"registered"`
+	JID        string `json:"jid"`
+}
+
 func (h *WhatsAppHandler) GetStatus(c echo.Context) error {
 	state, jid, qrCode := h.service.GetStatus()
 	return c.JSON(http.StatusOK, map[string]interface{}{
@@ -151,6 +166,88 @@ func (h *WhatsAppHandler) Logout(c echo.Context) error {
 		"message": "Logged out and session cleared successfully",
 	})
 }
+
+func (h *WhatsAppHandler) GetWebhook(c echo.Context) error {
+	url := h.service.GetWebhookURL()
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"url": url,
+	})
+}
+
+func (h *WhatsAppHandler) SetWebhook(c echo.Context) error {
+	var req WebhookRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body")
+	}
+
+	h.service.SetWebhookURL(req.URL)
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": "Webhook URL updated successfully",
+		"url":     req.URL,
+	})
+}
+
+func (h *WhatsAppHandler) CheckNumber(c echo.Context) error {
+	var req CheckNumberRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body")
+	}
+
+	var numbersToCheck []string
+	if req.Number != "" {
+		numbersToCheck = append(numbersToCheck, req.Number)
+	}
+	for _, num := range req.Numbers {
+		if num != "" {
+			numbersToCheck = append(numbersToCheck, num)
+		}
+	}
+
+	if len(numbersToCheck) == 0 {
+		return echo.NewHTTPError(http.StatusBadRequest, "Either 'number' or 'numbers' array must be provided")
+	}
+
+	cleanedNumbers := make([]string, len(numbersToCheck))
+	for i, num := range numbersToCheck {
+		cleaned := strings.TrimSpace(num)
+		cleaned = strings.ReplaceAll(cleaned, "+", "")
+		cleaned = strings.ReplaceAll(cleaned, " ", "")
+		cleaned = strings.ReplaceAll(cleaned, "-", "")
+		cleanedNumbers[i] = cleaned
+	}
+
+	results, err := h.service.IsOnWhatsApp(c.Request().Context(), cleanedNumbers)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	var responseResults []CheckNumberResult
+	for _, res := range results {
+		responseResults = append(responseResults, CheckNumberResult{
+			Number:     res.Query,
+			Registered: res.IsIn,
+			JID:        res.JID.String(),
+		})
+	}
+
+	var singleResult *CheckNumberResult
+	if len(responseResults) == 1 {
+		singleResult = &responseResults[0]
+	}
+
+	respPayload := map[string]interface{}{
+		"results": responseResults,
+	}
+	if singleResult != nil {
+		respPayload["registered"] = singleResult.Registered
+		respPayload["jid"] = singleResult.JID
+		respPayload["number"] = singleResult.Number
+	}
+
+	return c.JSON(http.StatusOK, respPayload)
+}
+
 
 const htmlQRTemplate = `<!DOCTYPE html>
 <html>

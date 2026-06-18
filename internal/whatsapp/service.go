@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"strings"
+	"time"
 
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/proto/waE2E"
@@ -17,6 +19,9 @@ type WhatsAppService interface {
 	SendMessage(ctx context.Context, to string, text string) (string, error)
 	SendFile(ctx context.Context, to string, fileData []byte, fileName string, mimeType string, caption string) (string, error)
 	Logout(ctx context.Context) error
+	IsOnWhatsApp(ctx context.Context, numbers []string) ([]types.IsOnWhatsAppResponse, error)
+	GetWebhookURL() string
+	SetWebhookURL(url string)
 }
 
 type whatsappService struct {
@@ -27,6 +32,14 @@ func NewWhatsAppService(manager *WhatsAppManager) WhatsAppService {
 	return &whatsappService{
 		manager: manager,
 	}
+}
+
+func (s *whatsappService) GetWebhookURL() string {
+	return s.manager.GetWebhookURL()
+}
+
+func (s *whatsappService) SetWebhookURL(url string) {
+	s.manager.SetWebhookURL(url)
 }
 
 func (s *whatsappService) GetStatus() (ConnectionState, string, string) {
@@ -62,6 +75,22 @@ func (s *whatsappService) SendMessage(ctx context.Context, to string, text strin
 		}
 	}
 
+	// Safety: Duplicate check
+	if err := s.manager.CheckDuplicate(text); err != nil {
+		return "", err
+	}
+
+	// Safety: Humanized Delay
+	delay := s.calculateDelay(ctx, jid)
+	if delay > 0 {
+		s.manager.sugar.Infof("Enforcing humanized delay of %v before sending message to %s", delay, to)
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case <-time.After(delay):
+		}
+	}
+
 	msg := &waE2E.Message{
 		Conversation: proto.String(text),
 	}
@@ -70,6 +99,9 @@ func (s *whatsappService) SendMessage(ctx context.Context, to string, text strin
 	if err != nil {
 		return "", fmt.Errorf("failed to dispatch message: %w", err)
 	}
+
+	// Safety: Record sent message
+	s.manager.RecordSentMessage(text)
 
 	return resp.ID, nil
 }
@@ -92,6 +124,24 @@ func (s *whatsappService) SendFile(ctx context.Context, to string, fileData []by
 		jid, err = types.ParseJID(to + "@s.whatsapp.net")
 		if err != nil {
 			return "", fmt.Errorf("invalid recipient address: %w", err)
+		}
+	}
+
+	// Safety: Duplicate check on caption
+	if caption != "" {
+		if err := s.manager.CheckDuplicate(caption); err != nil {
+			return "", err
+		}
+	}
+
+	// Safety: Humanized Delay
+	delay := s.calculateDelay(ctx, jid)
+	if delay > 0 {
+		s.manager.sugar.Infof("Enforcing humanized delay of %v before sending media to %s", delay, to)
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case <-time.After(delay):
 		}
 	}
 
@@ -165,7 +215,28 @@ func (s *whatsappService) SendFile(ctx context.Context, to string, fileData []by
 		return "", fmt.Errorf("failed to dispatch media message: %w", err)
 	}
 
+	// Safety: Record sent caption
+	if caption != "" {
+		s.manager.RecordSentMessage(caption)
+	}
+
 	return sendResp.ID, nil
+}
+
+func (s *whatsappService) IsOnWhatsApp(ctx context.Context, numbers []string) ([]types.IsOnWhatsAppResponse, error) {
+	if s.manager.client == nil {
+		return nil, errors.New("whatsapp client is not initialized")
+	}
+
+	s.manager.stateMu.RLock()
+	connected := s.manager.state == StateConnected
+	s.manager.stateMu.RUnlock()
+
+	if !connected {
+		return nil, errors.New("whatsapp client is not connected")
+	}
+
+	return s.manager.client.IsOnWhatsApp(ctx, numbers)
 }
 
 func (s *whatsappService) Logout(ctx context.Context) error {
@@ -184,4 +255,33 @@ func (s *whatsappService) Logout(ctx context.Context) error {
 	s.manager.stateMu.Unlock()
 
 	return nil
+}
+
+func (s *whatsappService) calculateDelay(ctx context.Context, jid types.JID) time.Duration {
+	isContact := false
+	if s.manager.client != nil && s.manager.client.Store != nil && s.manager.client.Store.Contacts != nil {
+		contact, err := s.manager.client.Store.Contacts.GetContact(ctx, jid)
+		if err == nil && contact.Found {
+			isContact = true
+		}
+	}
+
+	var minMs, maxMs int
+	if isContact {
+		minMs = s.manager.safetyCfg.SendDelayMinMs
+		maxMs = s.manager.safetyCfg.SendDelayMaxMs
+	} else {
+		minMs = s.manager.safetyCfg.NonContactDelayMinMs
+		maxMs = s.manager.safetyCfg.NonContactDelayMaxMs
+	}
+
+	if minMs <= 0 && maxMs <= 0 {
+		return 0
+	}
+	if minMs >= maxMs {
+		return time.Duration(minMs) * time.Millisecond
+	}
+
+	randomMs := minMs + rand.Intn(maxMs-minMs+1)
+	return time.Duration(randomMs) * time.Millisecond
 }

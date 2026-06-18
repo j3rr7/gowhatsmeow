@@ -197,7 +197,6 @@ The API checks the file's mime-type header to format the message properties:
   "message": "File ('file') is required"
 }
 ```
-
 ---
 
 ## 6. Logout
@@ -219,3 +218,116 @@ Disconnects from WhatsApp, revokes credentials, and clears database session stor
   "message": "Logged out and session cleared successfully"
 }
 ```
+
+---
+
+## 7. Check Number
+
+Checks if a phone number or a list of phone numbers are registered on WhatsApp.
+
+* **Endpoint**: `/api/v1/whatsapp/check-number`
+* **Method**: `POST`
+* **Headers**:
+  * `Content-Type: application/json`
+* **Request Body** (Single check):
+```json
+{
+  "number": "+62 812-3456-789"
+}
+```
+* **Request Body** (Bulk check):
+```json
+{
+  "numbers": ["628123456789", "628999999999"]
+}
+```
+
+### Responses
+#### Success (Single check)
+* **Code**: `200 OK`
+* **Response Body**:
+```json
+{
+  "registered": true,
+  "number": "628123456789",
+  "jid": "628123456789@s.whatsapp.net",
+  "results": [
+    {
+      "number": "628123456789",
+      "registered": true,
+      "jid": "628123456789@s.whatsapp.net"
+    }
+  ]
+}
+```
+
+#### Success (Bulk check)
+* **Code**: `200 OK`
+* **Response Body**:
+```json
+{
+  "results": [
+    {
+      "number": "628123456789",
+      "registered": true,
+      "jid": "628123456789@s.whatsapp.net"
+    },
+    {
+      "number": "628999999999",
+      "registered": false,
+      "jid": ""
+    }
+  ]
+}
+```
+
+---
+
+## 8. Get Webhook
+
+Retrieves the currently registered webhook callback URL.
+
+* **Endpoint**: `/api/v1/whatsapp/webhook`
+* **Method**: `GET`
+* **Headers**: None
+* **Request Body**: None
+
+### Responses
+#### Success
+* **Code**: `200 OK`
+* **Response Body**:
+```json
+{
+  "url": "https://your-app.com/api/v1/webhook"
+}
+```
+
+---
+
+## 9. Set Webhook
+
+Registers or updates the webhook callback URL dynamically at runtime.
+
+* **Endpoint**: `/api/v1/whatsapp/webhook`
+* **Method**: `POST`
+* **Headers**:
+  * `Content-Type: application/json`
+* **Request Body**:
+```json
+{
+  "url": "https://your-app.com/api/v1/webhook"
+}
+```
+
+### Responses
+#### Success
+* **Code**: `200 OK`
+* **Response Body**:
+```json
+{
+  "success": true,
+  "message": "Webhook URL updated successfully",
+  "url": "https://your-app.com/api/v1/webhook"
+}
+```
+

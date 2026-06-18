@@ -10,6 +10,8 @@ type Config struct {
 	Server   ServerConfig   `mapstructure:"server"`
 	Database DatabaseConfig `mapstructure:"database"`
 	Logger   LoggerConfig   `mapstructure:"logger"`
+	Webhook  WebhookConfig  `mapstructure:"webhook"`
+	Safety   SafetyConfig   `mapstructure:"safety"`
 }
 
 type ServerConfig struct {
@@ -27,6 +29,19 @@ type LoggerConfig struct {
 	Encoding string `mapstructure:"encoding"` // console or json
 }
 
+type WebhookConfig struct {
+	URL string `mapstructure:"url"`
+}
+
+type SafetyConfig struct {
+	SendDelayMinMs       int `mapstructure:"send_delay_min_ms"`
+	SendDelayMaxMs       int `mapstructure:"send_delay_max_ms"`
+	NonContactDelayMinMs int `mapstructure:"non_contact_delay_min_ms"`
+	NonContactDelayMaxMs int `mapstructure:"non_contact_delay_max_ms"`
+	DuplicateWindowSec   int `mapstructure:"duplicate_window_seconds"`
+	MaxDuplicateSends    int `mapstructure:"max_duplicate_sends"`
+}
+
 func LoadConfig() (*Config, error) {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
@@ -39,6 +54,13 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault("database.url", "file:whatsapp.db?_foreign_keys=on")
 	viper.SetDefault("logger.level", "info")
 	viper.SetDefault("logger.encoding", "console")
+	viper.SetDefault("webhook.url", "")
+	viper.SetDefault("safety.send_delay_min_ms", 1000)
+	viper.SetDefault("safety.send_delay_max_ms", 3000)
+	viper.SetDefault("safety.non_contact_delay_min_ms", 5000)
+	viper.SetDefault("safety.non_contact_delay_max_ms", 10000)
+	viper.SetDefault("safety.duplicate_window_seconds", 120)
+	viper.SetDefault("safety.max_duplicate_sends", 2)
 
 	viper.SetEnvPrefix("WA_API")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
