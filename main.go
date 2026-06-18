@@ -11,6 +11,10 @@ import (
 	"go.uber.org/fx"
 )
 
+// @title Whatsapp API
+// @version 1.0
+// @description Whatsapp API
+// @servers http://localhost:8080
 func main() {
 	app := fx.New(
 		fx.Provide(

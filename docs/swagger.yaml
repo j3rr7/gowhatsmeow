@@ -1,4 +1,274 @@
+components:
+  schemas:
+    handlers.CheckNumberRequest:
+      properties:
+        number:
+          type: string
+        numbers:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+      type: object
+    handlers.SendMessageRequest:
+      properties:
+        message:
+          type: string
+        to:
+          type: string
+      type: object
+    handlers.WebhookRequest:
+      properties:
+        url:
+          type: string
+      type: object
+externalDocs:
+  description: ""
+  url: ""
 info:
-  contact: {}
-paths: {}
-swagger: "2.0"
+  description: Whatsapp API
+  title: Whatsapp API
+  version: "1.0"
+openapi: 3.1.0
+paths:
+  /api/v1/whatsapp/check-number:
+    post:
+      description: Check whether a single number or list of numbers are registered
+        WhatsApp accounts.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/handlers.CheckNumberRequest'
+                description: Check numbers payload
+                summary: request
+        description: Check numbers payload
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                type: object
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                type: object
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                type: object
+          description: Internal Server Error
+      summary: Check if numbers are registered on WhatsApp
+      tags:
+      - whatsapp
+  /api/v1/whatsapp/logout:
+    post:
+      description: Log out of the current WhatsApp session and clear local credentials.
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                type: object
+          description: OK
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                type: object
+          description: Internal Server Error
+      summary: Logout WhatsApp session
+      tags:
+      - whatsapp
+  /api/v1/whatsapp/qr:
+    get:
+      description: Get the current QR code for scanning to login. If the Accept header
+        contains text/html, it returns an HTML page with the QR code. Otherwise, it
+        returns a JSON response.
+      responses:
+        "200":
+          content:
+            text/html:
+              schema:
+                additionalProperties: {}
+                type: object
+          description: OK
+        "202":
+          content:
+            text/html:
+              schema:
+                additionalProperties: {}
+                type: object
+          description: Accepted
+      summary: Get WhatsApp login QR code
+      tags:
+      - whatsapp
+  /api/v1/whatsapp/send:
+    post:
+      description: Send a text message to a WhatsApp number/JID.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/handlers.SendMessageRequest'
+                description: Message payload
+                summary: request
+        description: Message payload
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                type: object
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                type: object
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                type: object
+          description: Internal Server Error
+      summary: Send a text message
+      tags:
+      - whatsapp
+  /api/v1/whatsapp/send-file:
+    post:
+      description: Upload and send a file to a WhatsApp number/JID.
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              oneOf:
+              - title: to
+                type: string
+              - title: file
+                type: file
+              - title: caption
+                type: string
+          multipart/form-data:
+            schema:
+              type: object
+        description: Recipient JID or phone number | The file to send | Optional file
+          caption
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                type: object
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                type: object
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                type: object
+          description: Internal Server Error
+      summary: Send a file
+      tags:
+      - whatsapp
+  /api/v1/whatsapp/status:
+    get:
+      description: Get the current connection status of the WhatsApp client, including
+        JID and QR code if available.
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                type: object
+          description: OK
+      summary: Get WhatsApp connection status
+      tags:
+      - whatsapp
+  /api/v1/whatsapp/webhook:
+    get:
+      description: Get the currently configured webhook URL.
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                type: object
+          description: OK
+      summary: Get webhook URL
+      tags:
+      - whatsapp
+    post:
+      description: Update the webhook URL.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/handlers.WebhookRequest'
+                description: Webhook payload
+                summary: request
+        description: Webhook payload
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                type: object
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                type: object
+          description: Bad Request
+      summary: Set webhook URL
+      tags:
+      - whatsapp
+  /healthz:
+    get:
+      description: Get the health status of the API service
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: {}
+                type: object
+          description: OK
+      summary: Check health status
+      tags:
+      - health

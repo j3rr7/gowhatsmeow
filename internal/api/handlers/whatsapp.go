@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 type WhatsAppHandler struct {
@@ -41,7 +41,14 @@ type CheckNumberResult struct {
 	JID        string `json:"jid"`
 }
 
-func (h *WhatsAppHandler) GetStatus(c echo.Context) error {
+// GetStatus godoc
+// @Summary Get WhatsApp connection status
+// @Description Get the current connection status of the WhatsApp client, including JID and QR code if available.
+// @Tags whatsapp
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Router /api/v1/whatsapp/status [get]
+func (h *WhatsAppHandler) GetStatus(c *echo.Context) error {
 	state, jid, qrCode := h.service.GetStatus()
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"status":  state,
@@ -51,7 +58,16 @@ func (h *WhatsAppHandler) GetStatus(c echo.Context) error {
 	})
 }
 
-func (h *WhatsAppHandler) GetQR(c echo.Context) error {
+// GetQR godoc
+// @Summary Get WhatsApp login QR code
+// @Description Get the current QR code for scanning to login. If the Accept header contains text/html, it returns an HTML page with the QR code. Otherwise, it returns a JSON response.
+// @Tags whatsapp
+// @Produce json
+// @Produce html
+// @Success 200 {object} map[string]interface{}
+// @Success 202 {object} map[string]interface{}
+// @Router /api/v1/whatsapp/qr [get]
+func (h *WhatsAppHandler) GetQR(c *echo.Context) error {
 	state, _, qrCode := h.service.GetStatus()
 
 	acceptHeader := c.Request().Header.Get("Accept")
@@ -91,7 +107,18 @@ func (h *WhatsAppHandler) GetQR(c echo.Context) error {
 	})
 }
 
-func (h *WhatsAppHandler) SendMessage(c echo.Context) error {
+// SendMessage godoc
+// @Summary Send a text message
+// @Description Send a text message to a WhatsApp number/JID.
+// @Tags whatsapp
+// @Accept json
+// @Produce json
+// @Param request body SendMessageRequest true "Message payload"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/v1/whatsapp/send [post]
+func (h *WhatsAppHandler) SendMessage(c *echo.Context) error {
 	var req SendMessageRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body")
@@ -115,7 +142,20 @@ func (h *WhatsAppHandler) SendMessage(c echo.Context) error {
 	})
 }
 
-func (h *WhatsAppHandler) SendFile(c echo.Context) error {
+// SendFile godoc
+// @Summary Send a file
+// @Description Upload and send a file to a WhatsApp number/JID.
+// @Tags whatsapp
+// @Accept multipart/form-data
+// @Produce json
+// @Param to formData string true "Recipient JID or phone number"
+// @Param file formData file true "The file to send"
+// @Param caption formData string false "Optional file caption"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/v1/whatsapp/send-file [post]
+func (h *WhatsAppHandler) SendFile(c *echo.Context) error {
 	to := c.FormValue("to")
 	caption := c.FormValue("caption")
 
@@ -155,7 +195,15 @@ func (h *WhatsAppHandler) SendFile(c echo.Context) error {
 	})
 }
 
-func (h *WhatsAppHandler) Logout(c echo.Context) error {
+// Logout godoc
+// @Summary Logout WhatsApp session
+// @Description Log out of the current WhatsApp session and clear local credentials.
+// @Tags whatsapp
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/v1/whatsapp/logout [post]
+func (h *WhatsAppHandler) Logout(c *echo.Context) error {
 	err := h.service.Logout(c.Request().Context())
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
@@ -167,14 +215,31 @@ func (h *WhatsAppHandler) Logout(c echo.Context) error {
 	})
 }
 
-func (h *WhatsAppHandler) GetWebhook(c echo.Context) error {
+// GetWebhook godoc
+// @Summary Get webhook URL
+// @Description Get the currently configured webhook URL.
+// @Tags whatsapp
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Router /api/v1/whatsapp/webhook [get]
+func (h *WhatsAppHandler) GetWebhook(c *echo.Context) error {
 	url := h.service.GetWebhookURL()
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"url": url,
 	})
 }
 
-func (h *WhatsAppHandler) SetWebhook(c echo.Context) error {
+// SetWebhook godoc
+// @Summary Set webhook URL
+// @Description Update the webhook URL.
+// @Tags whatsapp
+// @Accept json
+// @Produce json
+// @Param request body WebhookRequest true "Webhook payload"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Router /api/v1/whatsapp/webhook [post]
+func (h *WhatsAppHandler) SetWebhook(c *echo.Context) error {
 	var req WebhookRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body")
@@ -188,7 +253,18 @@ func (h *WhatsAppHandler) SetWebhook(c echo.Context) error {
 	})
 }
 
-func (h *WhatsAppHandler) CheckNumber(c echo.Context) error {
+// CheckNumber godoc
+// @Summary Check if numbers are registered on WhatsApp
+// @Description Check whether a single number or list of numbers are registered WhatsApp accounts.
+// @Tags whatsapp
+// @Accept json
+// @Produce json
+// @Param request body CheckNumberRequest true "Check numbers payload"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/v1/whatsapp/check-number [post]
+func (h *WhatsAppHandler) CheckNumber(c *echo.Context) error {
 	var req CheckNumberRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body")
@@ -247,7 +323,6 @@ func (h *WhatsAppHandler) CheckNumber(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, respPayload)
 }
-
 
 const htmlQRTemplate = `<!DOCTYPE html>
 <html>

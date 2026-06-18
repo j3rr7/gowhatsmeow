@@ -1,18 +1,22 @@
 package api
 
 import (
+	"strings"
+
+	"gowhatsmeow/docs"
 	"gowhatsmeow/internal/api/handlers"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
+	echoSwagger "github.com/swaggo/echo-swagger/v2"
 )
 
-// @title Whatsapp API
-// @version 1.0
-// @description Whatsapp API
-
-// @host localhost:8080
-// @BasePath /
 func RegisterRoutes(e *echo.Echo, health *handlers.HealthHandler, wa *handlers.WhatsAppHandler) {
+	// Swagger UI in echo-swagger/v2 expects "openapi": "3.0.0" instead of "3.1.0"
+	if docs.SwaggerInfo != nil {
+		docs.SwaggerInfo.SwaggerTemplate = strings.ReplaceAll(docs.SwaggerInfo.SwaggerTemplate, `"openapi": "3.1.0"`, `"openapi": "3.0.0"`)
+	}
+
+	e.GET("/swagger/*", echoSwagger.WrapHandlerV3)
 	e.GET("/healthz", health.Check)
 
 	v1 := e.Group("/api/v1")
