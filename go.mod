@@ -3,7 +3,7 @@ module gowhatsmeow
 go 1.25.6
 
 require (
-	github.com/labstack/echo/v5 v5.0.0
+	github.com/labstack/echo/v5 v5.0.3
 	github.com/mattn/go-sqlite3 v1.14.45
 	github.com/spf13/viper v1.21.0
 	github.com/swaggo/echo-swagger/v2 v2.0.1
